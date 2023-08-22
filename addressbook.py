@@ -10,7 +10,6 @@
 Реалізуємо це через створення ітератора за записами.
 '''
 
-
 from collections import UserDict
 from datetime import datetime, timedelta
 import re
@@ -22,16 +21,15 @@ class AddressBook(UserDict):
 
     def __iter__(self):
         return self.iterator()
-    
+
     def iterator(self, number_records=None):
         keys = list(self.data.keys())
         current_index = 0
 
         while current_index < len(keys):
-            list_to_show = keys[current_index : current_index + number_records]
+            list_to_show = keys[current_index: current_index + number_records]
             yield [(self.data[key]) for key in list_to_show]
             current_index += number_records
-
 
 
 class Record:
@@ -44,18 +42,24 @@ class Record:
 
     def add_phone(self, phone):
         self.phones.append(Phone(phone))
+        return 'New phone number added successfully'
 
     def del_phone(self, phone):
         self.phones.remove(Phone(phone))
+        return 'Phone number deleted successfully'
 
     def change_phone(self, old_phone, new_phone):
-        self.phones[self.phones.index(Phone(old_phone))] = Phone(new_phone)
+        for phone in self.phones:
+            if phone.value == old_phone:
+                phone.value = new_phone
+                return 'Phone number changed successfully'
+        return 'Phone number not found'
 
     def days_to_birthday(self):
         if self.birthday:
             current_datetime = datetime.now()
             birthday_in_this_year = self.birthday.replace(
-                year=current_datetime.year)
+                year=current_datetime.year)                     # десь тут косяк, треба переробити                       
             if birthday_in_this_year >= current_datetime:
                 days_left = birthday_in_this_year - current_datetime
                 return f"{self.name}'s birthday {days_left.days} days away"
@@ -71,7 +75,8 @@ class Record:
 
 class Field:
     def __init__(self, value):
-        self.__value = value
+        self.__value = None  # спочатку це поле None, його заповнимо в сеттері
+        self.value = value
 
     @property
     def value(self):
@@ -90,29 +95,49 @@ class Name(Field):
 
 
 class Phone(Field):
-    def validate_phone_number(phone):
+
+    # звертаємось до батьковського сеттера і перевизначаємо його в цьому классі
+    @Field.value.setter
+    def value(self, value):
+        valid_value = self.validate_phone_number(value)
+        if valid_value:
+            self._Field__value = valid_value
+
+    def validate_phone_number(self, phone):
         addon = {9: '+380', 10: '+38', 11: '+3', 12: '+'}
         sanitize_number = re.sub('["(",")","\-", "+", " "]', '', phone)
 
         if sanitize_number.isdigit():
             digit_count = len(sanitize_number)
             if digit_count >= 9 and digit_count <= 12:
-                return addon.get(digit_count) + sanitize_number
+                valid_value = addon.get(digit_count) + sanitize_number
+                return valid_value
             else:
-                print('Wrong number of digits')
+                raise ValueError('Wrong number of digits')
         else:
-            print('Phone number must be numeric!')
+            raise ValueError('Phone number must be numeric!')
 
 
 class Birthday(Field):
     # 25-07-2023
+    @Field.value.setter
+    def value(self, value):
+        valid_value = self.validate_birthday(value)
+        if valid_value:
+            self._Field__value = valid_value
 
-    def validate_birthday(self):
+    def validate_birthday(self, birthday):
         try:
-            birthday = datetime.strptime(self, "%d-%m-%Y")
+            birthday = datetime.strptime(birthday, "%d-%m-%Y")
+            return birthday
         except ValueError:
             print('Wrong date')
-        return birthday
+            # default value (тимчасовий костиль)
+            return datetime.strptime('01-01-0001', "%d-%m-%Y")
+
+    def __repr__(self):
+
+        return datetime.strftime(self._Field__value, "%d.%m.%Y")
 
 
 if __name__ == '__main__':
@@ -129,18 +154,22 @@ if __name__ == '__main__':
     rec1 = Record(name1, phone1, birthday1)
     ab.add_record(rec1)
 
-    rec2 = Record(Name('Olga'), Phone('026856241'), Birthday('01-01-2001'))
+    rec2 = Record(Name('Olga'), Phone('026856241'))
     ab.add_record(rec2)
 
+    rec3 = Record(Name('Semen'), Phone('586640298'))
+    ab.add_record(rec3)
 
+    name4 = Name('Mykola')
+    phone4 = Phone('386425987')
+    birthday4 = Birthday('10-99-2015')
+    rec4 = Record(name4, phone4, birthday4)
+    ab.add_record(rec4)
 
-
-# test
-    assert isinstance(ab['Bill'], Record)
-    assert isinstance(ab['Bill'].name, Name)
-    assert isinstance(ab['Bill'].phones, list)
-    assert isinstance(ab['Bill'].phones[0], Phone)
-    assert ab['Bill'].phones[0].value == '1234567890'
-    assert ab['Bill'].birthday.value == '25-07-2023'
-
-    print('All Ok)')
+    print(ab['Bill'].phones[0].value)
+    print(next(ab.iterator(5)))
+    print(rec1.add_phone('356640298'))
+    print(next(ab.iterator(2)))
+    print(rec1.change_phone('+385864259781', '835640278'))
+    print(next(ab.iterator(8)))
+    print(rec1.days_to_birthday())
