@@ -58,8 +58,7 @@ class Record:
     def days_to_birthday(self):
         if self.birthday:
             current_datetime = datetime.now()
-            birthday_in_this_year = self.birthday.replace(
-                year=current_datetime.year)                     # десь тут косяк, треба переробити                       
+            birthday_in_this_year = datetime(year=datetime.now().year, month=self.birthday.value.month, day=self.birthday.value.day)                      
             if birthday_in_this_year >= current_datetime:
                 days_left = birthday_in_this_year - current_datetime
                 return f"{self.name}'s birthday {days_left.days} days away"
@@ -70,7 +69,12 @@ class Record:
                 return f"{self.name}'s birthday {days_left.days} days away"
 
     def __repr__(self):
-        return f'{self.name}, phones: {self.phones}, birthday: {self.birthday}'
+        if isinstance(self.birthday, Birthday):
+            return f'{self.name}, phones: {self.phones}, birthday: {self.birthday}'
+        else:
+            return f'{self.name}, phones: {self.phones}'
+        
+
 
 
 class Field:
@@ -127,17 +131,18 @@ class Birthday(Field):
             self._Field__value = valid_value
 
     def validate_birthday(self, birthday):
+        current_date = datetime.now()
         try:
             birthday = datetime.strptime(birthday, "%d-%m-%Y")
-            return birthday
-        except ValueError:
-            print('Wrong date')
-            # default value (тимчасовий костиль)
-            return datetime.strptime('01-01-0001', "%d-%m-%Y")
+            if birthday > current_date:
+                raise ValueError("Date of birth cannot be greater than the current date")
+            return birthday       
+        except ValueError: 'Wrong date'
+
 
     def __repr__(self):
-
-        return datetime.strftime(self._Field__value, "%d.%m.%Y")
+        if self._Field__value:
+            return datetime.strftime(self._Field__value, "%d.%m.%Y")
 
 
 if __name__ == '__main__':
@@ -162,7 +167,7 @@ if __name__ == '__main__':
 
     name4 = Name('Mykola')
     phone4 = Phone('386425987')
-    birthday4 = Birthday('10-99-2015')
+    birthday4 = Birthday('10-11-1901')
     rec4 = Record(name4, phone4, birthday4)
     ab.add_record(rec4)
 
@@ -170,6 +175,6 @@ if __name__ == '__main__':
     print(next(ab.iterator(5)))
     print(rec1.add_phone('356640298'))
     print(next(ab.iterator(2)))
-    print(rec1.change_phone('+385864259781', '835640278'))
+    print(rec1.change_phone('+385864259781', '0265840278'))
     print(next(ab.iterator(8)))
     print(rec1.days_to_birthday())
